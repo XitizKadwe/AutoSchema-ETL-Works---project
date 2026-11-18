@@ -10,7 +10,7 @@ A local CSV and Excel `.xls` data-quality workspace built with FastAPI, SQLite, 
 - Export the accepted, normalized records as a clean CSV.
 - Filter rows by column values, text, or numeric ranges; calculate count, average, sum, minimum, and maximum for detected numeric columns on the filtered results; export the filtered clean rows.
 - Download a synthetic sample CSV with intentional duplicates, blank records, and missing values.
-- Optionally request Gemini recommendations. The request sends only normalized column names and aggregate metrics, never row contents.
+- Optionally request Gemini recommendations in a formatted, readable report with a visual quality summary. The request sends only normalized column names and aggregate metrics, never row contents.
 
 ## Run locally
 

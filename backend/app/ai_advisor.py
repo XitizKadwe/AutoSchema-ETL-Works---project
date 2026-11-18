@@ -18,8 +18,12 @@ def explain_quality(columns: list[str], metrics: dict[str, Any]) -> str:
     model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
     fallback_model = os.getenv("GEMINI_FALLBACK_MODEL", "gemini-3.6-flash")
     prompt = (
-        "You are a data quality advisor. Explain this CSV quality summary and give "
-        "three practical cleanup recommendations. Do not infer or invent row values. "
+        "You are a careful data quality advisor. Respond in clean GitHub-flavored Markdown "
+        "using exactly these sections: '## Dataset overview', '## What looks good', "
+        "'## Data quality concerns', and '## Recommended next steps'. Use short paragraphs, "
+        "bullets, and bold only for important findings. Give up to three prioritized actions. "
+        "Use only the supplied aggregate metrics and column names; do not infer or invent "
+        "row values, causes, or business meaning. State when the metrics do not support a conclusion. "
         f"Columns: {json.dumps(columns)}. Metrics: {json.dumps(metrics)}."
     )
     payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode("utf-8")

@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   Bot,
+  CheckCircle2,
   ChevronDown,
+  CopyX,
   Database,
   FileSpreadsheet,
+  FileWarning,
   LoaderCircle,
   RefreshCw,
   Sparkles,
@@ -21,6 +24,7 @@ import QuarantineTable from "./components/QuarantineTable.jsx";
 import UploadZone from "./components/UploadZone.jsx";
 
 const chartColors = ["#18a999", "#f4b740"];
+const AdvisorResponse = lazy(() => import("./components/AdvisorResponse.jsx"));
 
 function formatDate(value) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
@@ -240,47 +244,104 @@ export default function App() {
                 />
               </section>
 
-              <section className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
-                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2 text-sm font-semibold text-ink">
-                        <Sparkles size={16} className="text-teal-600" /> AI data advisor
-                      </div>
-                      <p className="mt-1 text-xs leading-5 text-muted">Get cleanup suggestions from Gemini. Only column names and aggregate metrics are sent.</p>
+              <section className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card">
+                <div className="flex flex-col justify-between gap-3 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center sm:px-6">
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-semibold text-ink">
+                      <Sparkles size={16} className="text-teal-600" /> AI data advisor
                     </div>
-                    <button
-                      type="button"
-                      onClick={getGeminiAdvice}
-                      disabled={adviceLoading}
-                      className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-ink px-3 py-2 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-60"
-                    >
-                      {adviceLoading ? <LoaderCircle size={14} className="animate-spin" /> : <Bot size={14} />}
-                      Ask Gemini
-                    </button>
+                    <p className="mt-1 text-xs leading-5 text-muted">Gemini explains dataset quality and suggests practical next steps. Only column names and aggregate metrics are sent.</p>
                   </div>
-                  {advice && <p className="mt-4 whitespace-pre-wrap border-t border-slate-100 pt-4 text-sm leading-6 text-slate-600">{advice}</p>}
-                  {!advice && <p className="mt-3 text-[11px] text-slate-400">Requires GEMINI_API_KEY on the backend. Requests are always opt-in.</p>}
+                  <button
+                    type="button"
+                    onClick={getGeminiAdvice}
+                    disabled={adviceLoading}
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-ink px-4 py-2.5 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {adviceLoading ? <LoaderCircle size={14} className="animate-spin" /> : <Bot size={14} />}
+                    {adviceLoading ? "Analyzing data..." : advice ? "Refresh analysis" : "Ask Gemini"}
+                  </button>
                 </div>
-                <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-card">
-                  <h3 className="text-sm font-semibold text-ink">Row distribution</h3>
-                  <div className="mt-1 h-36">
+
+                <div className="grid grid-cols-2 gap-3 border-b border-slate-100 bg-slate-50/60 p-4 sm:grid-cols-4 sm:px-6">
+                  {[
+                    { label: "Accepted", value: batch.metrics.accepted_rows, icon: CheckCircle2, color: "text-teal-700", bg: "bg-teal-50" },
+                    { label: "Quarantined", value: batch.metrics.quarantined_rows, icon: FileWarning, color: "text-amber-700", bg: "bg-amber-50" },
+                    { label: "Duplicates", value: batch.metrics.duplicate_rows, icon: CopyX, color: "text-violet-700", bg: "bg-violet-50" },
+                    { label: "Missing cells", value: batch.metrics.missing_cells, icon: FileWarning, color: "text-rose-700", bg: "bg-rose-50" },
+                  ].map(({ label, value, icon: Icon, color, bg }) => (
+                    <div key={label} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-3">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${bg} ${color}`}>
+                        <Icon size={17} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-lg font-semibold leading-5 text-ink">{value.toLocaleString()}</span>
+                        <span className="mt-1 block truncate text-[10px] font-medium text-muted">{label}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {advice ? (
+                  <Suspense fallback={<div className="p-6 text-sm text-muted">Formatting Gemini analysis...</div>}>
+                    <AdvisorResponse content={advice} />
+                  </Suspense>
+                ) : (
+                  <div className="p-5 sm:px-6">
+                    <div className="flex gap-3">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-50 text-teal-700">
+                        <Bot size={18} />
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-ink">
+                          {adviceLoading ? "Reviewing your dataset..." : "Get a clear quality summary"}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-muted">
+                          {adviceLoading
+                            ? "Gemini is checking the aggregate metrics and preparing recommendations."
+                            : "Gemini will summarize the data, highlight quality concerns, and suggest prioritized actions."}
+                        </p>
+                        {!adviceLoading && <p className="mt-2 text-[10px] text-slate-400">AI is optional. Uploaded row values are never sent.</p>}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="grid gap-4 border-t border-slate-100 bg-slate-50/50 p-5 sm:grid-cols-[minmax(0,1fr)_180px] sm:items-center sm:px-6">
+                  <div>
+                    <h3 className="text-xs font-semibold text-ink">Dataset row distribution</h3>
+                    <p className="mt-1 text-[11px] leading-5 text-muted">Accepted and quarantined records from the full upload.</p>
+                    <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-slate-200" aria-label="Accepted and quarantined row ratio">
+                      {batch.metrics.total_rows > 0 && (
+                        <>
+                          <span
+                            className="h-full bg-teal-500"
+                            style={{ width: `${(batch.metrics.accepted_rows / batch.metrics.total_rows) * 100}%` }}
+                          />
+                          <span
+                            className="h-full bg-amber-400"
+                            style={{ width: `${(batch.metrics.quarantined_rows / batch.metrics.total_rows) * 100}%` }}
+                          />
+                        </>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted">
+                      {chartData.map((entry, index) => (
+                        <span key={entry.name} className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full" style={{ backgroundColor: chartColors[index] }} />
+                          {entry.name}: {entry.value.toLocaleString()}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="h-28">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={42} outerRadius={62} paddingAngle={4} stroke="none">
+                        <Pie data={chartData} dataKey="value" nameKey="name" innerRadius={30} outerRadius={48} paddingAngle={4} stroke="none">
                           {chartData.map((entry, index) => <Cell key={entry.name} fill={chartColors[index]} />)}
                         </Pie>
                         <Tooltip formatter={(value, name) => [value, name]} />
                       </PieChart>
                     </ResponsiveContainer>
-                  </div>
-                  <div className="flex justify-center gap-4 text-[11px] text-muted">
-                    {chartData.map((entry, index) => (
-                      <span key={entry.name} className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: chartColors[index] }} />
-                        {entry.name}
-                      </span>
-                    ))}
                   </div>
                 </div>
               </section>
